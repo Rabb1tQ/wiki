@@ -1,0 +1,5 @@
+Flask==2.3.3
+elasticsearch==7.17.0
+markdown==3.4.4
+markdown2==2.4.13
+python-dotenv 

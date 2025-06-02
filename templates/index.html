@@ -1,0 +1,317 @@
+{% extends "base.html" %}
+{% block title %}文档列表 - 文档管理系统{% endblock %}
+
+{% block breadcrumb %}
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-0">
+            <li class="breadcrumb-item active" aria-current="page">文档列表</li>
+        </ol>
+    </nav>
+{% endblock %}
+
+{% block content %}
+    <style>
+        .page-container {
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - var(--header-height) - var(--footer-height));
+            padding: 1.5rem;
+            gap: 1.5rem;
+            overflow: hidden;
+        }
+
+        .search-form {
+            flex: 0 0 auto;
+        }
+
+        .search-form input {
+            border-radius: 20px;
+            padding-left: 1rem;
+            border-color: #e6e6e6;
+            background: #f5f6fa;
+        }
+
+        .search-form button {
+            border-radius: 20px;
+            background: #1890ff;
+            color: #fff;
+            border: none;
+            transition: background 0.2s;
+        }
+
+        .search-form button:hover {
+            background: #40a9ff;
+        }
+
+        .content-wrapper {
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .card-grid {
+            flex: 1;
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 1rem;
+            overflow-y: auto;
+            padding-right: 0.5rem;
+        }
+
+        .ant-card {
+            border: 1px solid #f0f0f0;
+            border-radius: 8px;
+            background: white;
+            height: 280px;
+            min-height: 280px;
+            transition: all 0.3s;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .ant-card:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .ant-card .card-body {
+            flex: 1;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            padding: 1.2rem;
+        }
+
+        .ant-card .card-title {
+            margin-bottom: 0.8rem;
+            height: 2.4rem;
+            overflow: hidden;
+        }
+
+        .ant-card .card-title a {
+            color: #262626;
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 1.1rem;
+            line-height: 1.2;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .ant-card .card-title a:hover {
+            color: #1890ff;
+        }
+
+        .ant-card .card-text {
+            color: #595959;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            flex: 1;
+            margin: 0;
+            display: -webkit-box;
+            -webkit-line-clamp: 4;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            word-break: break-word;
+        }
+
+        .ant-card .card-footer {
+            background: #fafafa;
+            border-top: 1px solid #f0f0f0;
+            padding: 0.75rem 1.2rem;
+            font-size: 0.85rem;
+            flex-shrink: 0;
+        }
+
+        .pagination-container {
+            flex: 0 0 auto;
+            margin-top: 1rem;
+            padding: 0.5rem 0;
+            background: white;
+            border-top: 1px solid #f0f0f0;
+        }
+
+        .pagination {
+            margin-bottom: 0;
+        }
+
+        .page-link {
+            color: #1890ff;
+            border-color: #f0f0f0;
+            padding: 0.5rem 0.75rem;
+        }
+
+        .page-item.active .page-link {
+            background-color: #1890ff;
+            border-color: #1890ff;
+        }
+
+        /* 自定义滚动条 */
+        .card-grid::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .card-grid::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 3px;
+        }
+
+        .card-grid::-webkit-scrollbar-thumb {
+            background: #ccc;
+            border-radius: 3px;
+        }
+
+        .card-grid::-webkit-scrollbar-thumb:hover {
+            background: #999;
+        }
+
+        /* 响应式布局 - 只调整间距和内边距，保持5列不变 */
+        @media (max-width: 1400px) {
+            .page-container {
+                padding: 1rem;
+            }
+
+            .card-grid {
+                gap: 0.75rem;
+            }
+
+            .ant-card {
+                height: 260px;
+                min-height: 260px;
+            }
+
+            .ant-card .card-body {
+                padding: 1rem;
+            }
+
+            .ant-card .card-footer {
+                padding: 0.5rem 1rem;
+            }
+        }
+
+        @media (max-width: 1100px) {
+            .page-container {
+                padding: 0.75rem;
+            }
+
+            .card-grid {
+                gap: 0.5rem;
+            }
+
+            .ant-card {
+                height: 240px;
+                min-height: 240px;
+            }
+
+            .ant-card .card-text {
+                -webkit-line-clamp: 3;
+                font-size: 0.9rem;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .page-container {
+                padding: 0.5rem;
+            }
+
+            .card-grid {
+                gap: 0.5rem;
+                padding-right: 0.25rem;
+            }
+
+            .ant-card .card-title {
+                height: 2.2rem;
+            }
+
+            .ant-card .card-title a {
+                font-size: 1rem;
+            }
+
+            .pagination {
+                font-size: 0.9rem;
+            }
+
+            .text-muted.small {
+                font-size: 0.8rem;
+            }
+        }
+    </style>
+
+    <div class="page-container">
+        <!-- 搜索框 -->
+        <form class="d-flex search-form" method="get" action="/">
+            <input class="form-control me-2" type="search" name="q" placeholder="搜索文档..."
+                   value="{{ q|default('') }}">
+            <button class="btn btn-outline-primary" type="submit"><i class="bi bi-search"></i></button>
+        </form>
+
+        <div class="content-wrapper">
+            <!-- 卡片列表 -->
+            <div class="card-grid">
+                {% for doc in docs %}
+                    <div class="ant-card">
+                        <div style="height: 4px; background: linear-gradient(90deg, #1890ff 0%, #73e0a9 100%); border-radius: 8px 8px 0 0;"></div>
+                        <div class="card-body">
+                            <h5 class="card-title">
+                                <a href="{{ url_for('main.doc_detail', id=doc['_id']) }}"
+                                   title="{{ doc['_source']['title'] }}">{{ doc['_source']['title'] }}</a>
+                            </h5>
+                            <hr style="margin: 0.5rem 0; border-top: 1px dashed #e6f7ff;">
+                            <p class="card-text">
+                                {{ doc['_source']['content'][:200]|striptags }}...
+                            </p>
+                        </div>
+                        <div class="card-footer d-flex justify-content-between">
+                            <span><i
+                                    class="bi bi-clock"></i> {{ doc['_source']['update_time']|default('未知时间') }}</span>
+                            <span><i class="bi bi-eye"></i> {{ doc['_source']['views']|default(0) }}</span>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+
+            <!-- 分页 -->
+            {% if total > PAGE_SIZE %}
+                {% set total_pages = (total + PAGE_SIZE - 1) // PAGE_SIZE %}
+                <nav class="pagination-container" style="border-radius: 10px;padding: 10px;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <ul class="pagination">
+                            {% if page > 1 %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?q={{ q }}&page=1" title="首页"><i
+                                            class="bi bi-chevron-double-left"></i></a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?q={{ q }}&page={{ page-1 }}"><i
+                                            class="bi bi-chevron-left"></i></a>
+                                </li>
+                            {% endif %}
+                            {% for p in range(max(1, page-2), min(total_pages + 1, page+3)) %}
+                                <li class="page-item {% if p == page %}active{% endif %}">
+                                    <a class="page-link" href="?q={{ q }}&page={{ p }}">{{ p }}</a>
+                                </li>
+                            {% endfor %}
+                            {% if page < total_pages %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?q={{ q }}&page={{ page+1 }}"><i
+                                            class="bi bi-chevron-right"></i></a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?q={{ q }}&page={{ total_pages }}" title="尾页"><i
+                                            class="bi bi-chevron-double-right"></i></a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                        <div class="text-muted small">
+                            第 {{ page }} 页 / 共 {{ total_pages }} 页 ({{ total }} 条记录)
+                        </div>
+                    </div>
+                </nav>
+            {% endif %}
+        </div>
+    </div>
+{% endblock %} 

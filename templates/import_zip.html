@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}导入ZIP - 文档管理系统{% endblock %}
+{% block content %}
+    <div style="padding: 20px">
+
+
+        <h2 class="mb-4"><i class="bi bi-upload"></i> 批量导入ZIP包</h2>
+        <form method="post" enctype="multipart/form-data">
+            <div class="mb-3">
+                <label for="zipfile" class="form-label">选择ZIP文件（包含markdown、图片、附件等）</label>
+                <input class="form-control" type="file" id="zipfile" name="zipfile" accept=".zip" required>
+            </div>
+            <button type="submit" class="btn btn-primary"><i class="bi bi-upload"></i> 开始导入</button>
+        </form>
+        {% if message %}
+            <div class="alert alert-info mt-4">{{ message }}</div>
+            </div>
+        {% endif %}
+{% endblock %} 

@@ -1,0 +1,275 @@
+{% extends "base.html" %}
+{% block title %}{{ doc.title }} - 文档详情{% endblock %}
+{% block content %}
+<style>
+.markdown-body {
+    background: #fff;
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    font-size: 1.05rem;
+    line-height: 1.8;
+}
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 {
+    margin-top: 1.5em;
+    margin-bottom: 0.8em;
+    font-weight: 600;
+    color: #2c3e50;
+    border-bottom: 1px solid #eaecef;
+    padding-bottom: 0.3em;
+}
+.markdown-body h1 { font-size: 2em; }
+.markdown-body h2 { font-size: 1.7em; }
+.markdown-body h3 { font-size: 1.4em; }
+.markdown-body p {
+    margin: 1em 0;
+    color: #24292e;
+}
+.markdown-body img {
+    max-width: 100%;
+    border-radius: 6px;
+    margin: 1em 0;
+    border: 1px solid #eaecef;
+}
+.markdown-body blockquote {
+    padding: 0.8em 1em;
+    color: #666;
+    border-left: 4px solid #42b983;
+    background: #f8f8f8;
+    margin: 1.2em 0;
+    border-radius: 0 4px 4px 0;
+}
+.markdown-body a {
+    color: #0366d6;
+    text-decoration: none;
+}
+.markdown-body a:hover {
+    text-decoration: underline;
+}
+.markdown-body table {
+    border-collapse: collapse;
+    margin: 1em 0;
+    width: 100%;
+    display: block;
+    overflow-x: auto;
+}
+.markdown-body table th,
+.markdown-body table td {
+    padding: 0.5em 1em;
+    border: 1px solid #dfe2e5;
+}
+.markdown-body table th {
+    background: #f6f8fa;
+    font-weight: 600;
+}
+.markdown-body ul,
+.markdown-body ol {
+    padding-left: 2em;
+    margin: 1em 0;
+}
+.markdown-body li {
+    margin: 0.3em 0;
+}
+.markdown-body code {
+    font-family: 'JetBrains Mono', 'Fira Code', Consolas, Monaco, 'Courier New', Courier, monospace;
+}
+/* 代码块样式 */
+.markdown-body pre {
+    background: #282c34 !important;
+    border-radius: 8px;
+    padding: 1em;
+    margin: 1em 0;
+    overflow: auto;
+    position: relative;
+}
+.markdown-body pre code {
+    color: #abb2bf;
+    display: block;
+    font-size: 0.9em;
+    line-height: 1.6;
+    -webkit-font-smoothing: auto;
+}
+/* 行内代码样式 */
+.markdown-body :not(pre) > code {
+    background: #f6f8fa;
+    padding: 0.2em 0.4em;
+    border-radius: 3px;
+    font-size: 0.9em;
+    color: #1a1a1a;
+}
+/* 代码块顶部语言标签 */
+.markdown-body pre::before {
+    content: attr(data-lang);
+    position: absolute;
+    top: 0;
+    right: 0;
+    padding: 0.2em 0.5em;
+    font-size: 0.75em;
+    background: #3c424e;
+    color: #abb2bf;
+    border-radius: 0 8px 0 4px;
+}
+/* 代码块行号样式 */
+.markdown-body pre.line-numbers {
+    padding-left: 3.8em;
+    counter-reset: linenumber;
+}
+.markdown-body pre.line-numbers > code {
+    position: relative;
+}
+.markdown-body pre.line-numbers > code > span.line-number {
+    position: absolute;
+    left: -3.8em;
+    width: 3em;
+    text-align: right;
+    color: #636d83;
+    padding-right: 0.8em;
+    border-right: 1px solid #4b5263;
+    -webkit-user-select: none;
+    user-select: none;
+}
+/* 代码块复制按钮 */
+.markdown-body pre .copy-button {
+    position: absolute;
+    top: 0.5em;
+    right: 0.5em;
+    padding: 0.3em 0.6em;
+    font-size: 0.8em;
+    color: #abb2bf;
+    background: #3c424e;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+.markdown-body pre:hover .copy-button {
+    opacity: 1;
+}
+.markdown-body pre .copy-button:hover {
+    background: #4b5263;
+}
+.doc-meta {
+    color: #666;
+    font-size: 0.95rem;
+    background: #f8f9fa;
+    padding: 0.8em 1.2em;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    gap: 1.5em;
+}
+.doc-meta i {
+    margin-right: 0.3em;
+    color: #1890ff;
+}
+.doc-meta span {
+    display: flex;
+    align-items: center;
+}
+.breadcrumb {
+    background: none;
+    padding: 0;
+    margin: 0;
+    font-size: 0.95rem;
+}
+.breadcrumb-item a {
+    color: #1890ff;
+    text-decoration: none;
+}
+.breadcrumb-item.active {
+    color: #595959;
+}
+</style>
+
+<div class="container py-4">
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="/"><i class="bi bi-house"></i> 首页</a></li>
+            <li class="breadcrumb-item active">文档详情</li>
+        </ol>
+    </nav>
+
+    <div class="mb-4">
+        <h1 class="mb-3" style="color: #2c3e50; font-weight: 600;">{{ doc.title }}</h1>
+        <div class="doc-meta mb-3">
+            <span><i class="bi bi-clock"></i> {{ doc.update_time|default('未知时间') }}</span>
+            <span><i class="bi bi-eye"></i> {{ doc.views|default(0) }} 次阅读</span>
+        </div>
+    </div>
+
+    <div class="markdown-body mb-4">
+        {{ html|safe }}
+    </div>
+
+    {% if doc.attachments %}
+    <div class="card mb-3" style="border-radius: 8px; border: none; box-shadow: 0 2px 12px rgba(0,0,0,0.08);">
+        <div class="card-header bg-white" style="border-bottom: 1px solid #eaecef;">
+            <i class="bi bi-paperclip text-primary"></i> 附件下载
+        </div>
+        <ul class="list-group list-group-flush">
+            {% for att in doc.attachments %}
+            <li class="list-group-item">
+                <a href="{{ att.url }}" target="_blank" class="text-decoration-none d-flex align-items-center gap-2">
+                    <i class="bi bi-download text-primary"></i>
+                    {{ att.name }}
+                </a>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    <div class="mt-4">
+        <a href="/" class="btn btn-outline-primary">
+            <i class="bi bi-arrow-left"></i> 返回列表
+        </a>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 为所有代码块添加行号和复制按钮
+    document.querySelectorAll('.markdown-body pre code').forEach(function(codeBlock) {
+        const pre = codeBlock.parentElement;
+        
+        // 添加行号类
+        pre.classList.add('line-numbers');
+        
+        // 获取语言类
+        const classes = codeBlock.className.split(' ');
+        const langClass = classes.find(c => c.startsWith('language-'));
+        if (langClass) {
+            const lang = langClass.replace('language-', '');
+            pre.setAttribute('data-lang', lang);
+        }
+        
+        // 添加复制按钮
+        const button = document.createElement('button');
+        button.className = 'copy-button';
+        button.textContent = '复制';
+        button.onclick = async () => {
+            try {
+                await navigator.clipboard.writeText(codeBlock.textContent);
+                button.textContent = '已复制！';
+                setTimeout(() => button.textContent = '复制', 2000);
+            } catch (err) {
+                button.textContent = '复制失败';
+                setTimeout(() => button.textContent = '复制', 2000);
+            }
+        };
+        pre.appendChild(button);
+    });
+
+    // 重新触发 Prism.js 的高亮
+    if (window.Prism) {
+        Prism.highlightAll();
+    }
+});
+</script>
+{% endblock %} 
