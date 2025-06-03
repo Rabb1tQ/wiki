@@ -1,5 +1,7 @@
 import time
-from flask import Blueprint, render_template, request
+import os
+import re
+from flask import Blueprint, render_template, request, jsonify, current_app
 from extensions import es, md
 
 INDEX_NAME = 'wiki_docs'
@@ -76,16 +78,138 @@ def doc_detail(id):
     )
     doc['views'] = views
     html = md.render(doc.get('content', ''))
-    return render_template('detail.html', doc=doc, html=html)
+    return render_template('detail.html', doc=doc, html=html, doc_id=id)
 
 
 @main_bp.route('/uploads/<path:filename>')
 def uploaded_file(filename):
-    import os
     from flask import current_app, abort, send_from_directory
     full_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
     if not os.path.exists(full_path):
         abort(404)
     dir_name = os.path.dirname(filename)
     file_name = os.path.basename(filename)
-    return send_from_directory(os.path.join(current_app.config['UPLOAD_FOLDER'], dir_name), file_name) 
+    return send_from_directory(os.path.join(current_app.config['UPLOAD_FOLDER'], dir_name), file_name)
+
+
+@main_bp.route('/doc/<id>/delete', methods=['POST'])
+def delete_doc(id):
+    try:
+        # 获取文档信息
+        doc = es.get(index=INDEX_NAME, id=id)['_source']
+        
+        # 删除关联的图片文件
+        content = doc.get('content', '')
+        for img_url in re.findall(r'!\[.*?\]\(/uploads/images/([^)]+)\)', content):
+            img_path = os.path.join(current_app.config['UPLOAD_FOLDER'], 'images', img_url)
+            if os.path.exists(img_path):
+                os.remove(img_path)
+        
+        # 删除关联的附件
+        if 'attachments' in doc:
+            for attachment in doc['attachments']:
+                file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], attachment['url'].lstrip('/uploads/'))
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+        
+        # 删除 Elasticsearch 中的文档
+        es.delete(index=INDEX_NAME, id=id)
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@main_bp.route('/docs/batch-delete', methods=['POST'])
+def batch_delete_docs():
+    try:
+        ids = request.json.get('ids', [])
+        if not ids:
+            return jsonify({'success': False, 'error': 'No documents specified'}), 400
+        
+        failed_ids = []
+        for doc_id in ids:
+            try:
+                # 获取文档信息
+                doc = es.get(index=INDEX_NAME, id=doc_id)['_source']
+                
+                # 删除关联的图片文件
+                content = doc.get('content', '')
+                for img_url in re.findall(r'!\[.*?\]\(/uploads/images/([^)]+)\)', content):
+                    img_path = os.path.join(current_app.config['UPLOAD_FOLDER'], 'images', img_url)
+                    if os.path.exists(img_path):
+                        os.remove(img_path)
+                
+                # 删除关联的附件
+                if 'attachments' in doc:
+                    for attachment in doc['attachments']:
+                        file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], attachment['url'].lstrip('/uploads/'))
+                        if os.path.exists(file_path):
+                            os.remove(file_path)
+                
+                # 删除 Elasticsearch 中的文档
+                es.delete(index=INDEX_NAME, id=doc_id)
+                
+            except Exception:
+                failed_ids.append(doc_id)
+        
+        if failed_ids:
+            return jsonify({
+                'success': True,
+                'partial_failure': True,
+                'failed_ids': failed_ids
+            })
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@main_bp.route('/docs/delete-all', methods=['POST'])
+def delete_all_docs():
+    try:
+        # 获取所有文档
+        result = es.search(
+            index=INDEX_NAME,
+            body={
+                "query": {"match_all": {}},
+                "size": 10000  # 设置一个较大的值以获取所有文档
+            }
+        )
+        
+        total_docs = len(result['hits']['hits'])
+        failed_count = 0
+        
+        # 删除每个文档
+        for hit in result['hits']['hits']:
+            try:
+                doc_id = hit['_id']
+                doc = hit['_source']
+                
+                # 删除关联的图片文件
+                content = doc.get('content', '')
+                for img_url in re.findall(r'!\[.*?\]\(/uploads/images/([^)]+)\)', content):
+                    img_path = os.path.join(current_app.config['UPLOAD_FOLDER'], 'images', img_url)
+                    if os.path.exists(img_path):
+                        os.remove(img_path)
+                
+                # 删除关联的附件
+                if 'attachments' in doc:
+                    for attachment in doc['attachments']:
+                        file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], attachment['url'].lstrip('/uploads/'))
+                        if os.path.exists(file_path):
+                            os.remove(file_path)
+                
+                # 删除 Elasticsearch 中的文档
+                es.delete(index=INDEX_NAME, id=doc_id)
+                
+            except Exception:
+                failed_count += 1
+        
+        return jsonify({
+            'success': True,
+            'total': total_docs,
+            'failed': failed_count,
+            'deleted': total_docs - failed_count
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500 
