@@ -1,6 +1,29 @@
 {% extends "base.html" %}
 {% block title %}文档列表 - 文档管理系统{% endblock %}
 
+{% block head %}
+{{ super() }}
+<style>
+    .delete-btn {
+        color: #ff4d4f;
+        cursor: pointer;
+        margin-left: 8px;
+    }
+    .delete-btn:hover {
+        color: #ff7875;
+    }
+    .batch-actions {
+        margin-bottom: 1rem;
+    }
+    .checkbox-wrapper {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        z-index: 1;
+    }
+</style>
+{% endblock %}
+
 {% block breadcrumb %}
     <nav aria-label="breadcrumb">
         <ol class="breadcrumb mb-0">
@@ -249,16 +272,35 @@
             <button class="btn btn-outline-primary" type="submit"><i class="bi bi-search"></i></button>
         </form>
 
+        <div class="batch-actions">
+            <div class="d-flex align-items-center gap-2">
+                <input type="checkbox" id="selectAll" class="form-check-input">
+                <label for="selectAll" class="form-check-label">全选当前页</label>
+                <button id="batchDeleteBtn" class="btn btn-danger" style="display: none;">
+                    <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                    <span class="btn-text">批量删除</span>
+                </button>
+                <button id="deleteAllBtn" class="btn btn-danger">
+                    <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                    <span class="btn-text">删除所有文档</span>
+                </button>
+            </div>
+        </div>
+
         <div class="content-wrapper">
             <!-- 卡片列表 -->
             <div class="card-grid">
                 {% for doc in docs %}
                     <div class="ant-card">
+                        <div class="checkbox-wrapper">
+                            <input type="checkbox" class="doc-checkbox" data-id="{{ doc['_id'] }}">
+                        </div>
                         <div style="height: 4px; background: linear-gradient(90deg, #1890ff 0%, #73e0a9 100%); border-radius: 8px 8px 0 0;"></div>
                         <div class="card-body">
                             <h5 class="card-title">
                                 <a href="{{ url_for('main.doc_detail', id=doc['_id']) }}"
                                    title="{{ doc['_source']['title'] }}">{{ doc['_source']['title'] }}</a>
+                                <i class="fas fa-trash delete-btn" onclick="deleteDoc('{{ doc['_id'] }}')"></i>
                             </h5>
                             <hr style="margin: 0.5rem 0; border-top: 1px dashed #e6f7ff;">
                             <p class="card-text">
@@ -314,4 +356,200 @@
             {% endif %}
         </div>
     </div>
+
+    <script>
+        // 添加按钮加载状态控制函数
+        function setButtonLoading(button, isLoading) {
+            const spinner = button.querySelector('.spinner-border');
+            const text = button.querySelector('.btn-text');
+            button.disabled = isLoading;
+            if (isLoading) {
+                spinner.classList.remove('d-none');
+                text.textContent = '删除中...';
+            } else {
+                spinner.classList.add('d-none');
+                text.textContent = button.id === 'deleteAllBtn' ? '删除所有文档' : '批量删除';
+            }
+        }
+
+        function deleteDoc(id) {
+            if (!confirm('确定要删除这个文档吗？')) {
+                return;
+            }
+            
+            const card = document.querySelector(`.doc-checkbox[data-id="${id}"]`).closest('.ant-card');
+            card.style.opacity = '0.5';
+            
+            fetch(`/doc/${id}/delete`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    card.remove();
+                    // 如果当前页面没有文档了，刷新页面
+                    if (document.querySelectorAll('.ant-card').length === 0) {
+                        location.reload();
+                    }
+                } else {
+                    card.style.opacity = '1';
+                    alert('删除失败：' + (data.error || '未知错误'));
+                }
+            })
+            .catch(error => {
+                card.style.opacity = '1';
+                alert('删除失败：' + error);
+            });
+        }
+
+        // 批量删除相关功能
+        const checkboxes = document.querySelectorAll('.doc-checkbox');
+        const batchDeleteBtn = document.getElementById('batchDeleteBtn');
+        const selectAllCheckbox = document.getElementById('selectAll');
+
+        // 更新全选状态
+        function updateSelectAllState() {
+            const totalCheckboxes = checkboxes.length;
+            const checkedCheckboxes = document.querySelectorAll('.doc-checkbox:checked').length;
+            selectAllCheckbox.checked = totalCheckboxes > 0 && totalCheckboxes === checkedCheckboxes;
+            batchDeleteBtn.style.display = checkedCheckboxes > 0 ? 'block' : 'none';
+        }
+
+        // 全选/取消全选
+        selectAllCheckbox.addEventListener('change', () => {
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = selectAllCheckbox.checked;
+            });
+            updateSelectAllState();
+        });
+
+        // 单个复选框变化时更新全选状态
+        checkboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', updateSelectAllState);
+        });
+
+        batchDeleteBtn.addEventListener('click', async () => {
+            const selectedIds = Array.from(document.querySelectorAll('.doc-checkbox:checked'))
+                .map(checkbox => checkbox.dataset.id);
+
+            if (!selectedIds.length) {
+                return;
+            }
+
+            if (!confirm(`确定要删除选中的 ${selectedIds.length} 个文档吗？`)) {
+                return;
+            }
+
+            setButtonLoading(batchDeleteBtn, true);
+
+            // 设置选中卡片的透明度
+            selectedIds.forEach(id => {
+                const card = document.querySelector(`.doc-checkbox[data-id="${id}"]`).closest('.ant-card');
+                card.style.opacity = '0.5';
+            });
+
+            try {
+                const response = await fetch('/docs/batch-delete', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ ids: selectedIds })
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    // 移除成功删除的卡片
+                    const failedIds = data.partial_failure ? data.failed_ids : [];
+                    selectedIds.forEach(id => {
+                        if (!failedIds.includes(id)) {
+                            const card = document.querySelector(`.doc-checkbox[data-id="${id}"]`).closest('.ant-card');
+                            card.remove();
+                        }
+                    });
+
+                    if (data.partial_failure) {
+                        alert(`部分文档删除失败，失败的文档ID：${data.failed_ids.join(', ')}`);
+                        // 恢复失败文档的卡片透明度
+                        data.failed_ids.forEach(id => {
+                            const card = document.querySelector(`.doc-checkbox[data-id="${id}"]`).closest('.ant-card');
+                            card.style.opacity = '1';
+                        });
+                    }
+
+                    // 如果当前页面没有文档了，刷新页面
+                    if (document.querySelectorAll('.ant-card').length === 0) {
+                        location.reload();
+                    }
+                } else {
+                    alert('删除失败：' + (data.error || '未知错误'));
+                    // 恢复所有卡片的透明度
+                    selectedIds.forEach(id => {
+                        const card = document.querySelector(`.doc-checkbox[data-id="${id}"]`).closest('.ant-card');
+                        card.style.opacity = '1';
+                    });
+                }
+            } catch (error) {
+                alert('删除失败：' + error);
+                // 恢复所有卡片的透明度
+                selectedIds.forEach(id => {
+                    const card = document.querySelector(`.doc-checkbox[data-id="${id}"]`).closest('.ant-card');
+                    card.style.opacity = '1';
+                });
+            } finally {
+                setButtonLoading(batchDeleteBtn, false);
+            }
+        });
+
+        // 删除所有文档
+        document.getElementById('deleteAllBtn').addEventListener('click', async function() {
+            if (!confirm('确定要删除所有文档吗？此操作不可恢复！')) {
+                return;
+            }
+            
+            const button = this;
+            setButtonLoading(button, true);
+
+            // 设置所有卡片的透明度
+            document.querySelectorAll('.ant-card').forEach(card => {
+                card.style.opacity = '0.5';
+            });
+            
+            try {
+                const response = await fetch('/docs/delete-all', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    if (data.failed > 0) {
+                        alert(`成功删除 ${data.deleted} 个文档，失败 ${data.failed} 个。`);
+                    } else {
+                        alert(`成功删除所有 ${data.deleted} 个文档！`);
+                    }
+                    location.reload();
+                } else {
+                    alert('删除失败：' + (data.error || '未知错误'));
+                    // 恢复所有卡片的透明度
+                    document.querySelectorAll('.ant-card').forEach(card => {
+                        card.style.opacity = '1';
+                    });
+                }
+            } catch (error) {
+                alert('删除失败：' + error);
+                // 恢复所有卡片的透明度
+                document.querySelectorAll('.ant-card').forEach(card => {
+                    card.style.opacity = '1';
+                });
+            } finally {
+                setButtonLoading(button, false);
+            }
+        });
+    </script>
 {% endblock %} 
